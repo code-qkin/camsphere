@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../services/firebase';
-import { collection, query, where, onSnapshot, orderBy, addDoc, updateDoc, doc, getDocs, setDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, addDoc, updateDoc, doc, getDocs, setDoc, serverTimestamp } from 'firebase/firestore';
 import type { Chat as ChatType, Message, TaggedItem } from '../types';
 import { ArrowLeft01Icon, Cancel01Icon, Image01Icon, Shield01Icon } from 'hugeicons-react';
 import { format } from 'date-fns';
@@ -17,13 +17,22 @@ const Send01Icon = ({ size }: { size: number }) => (
   </svg>
 );
 
+const QUICK_ACTIONS = [
+  "Is this still available?",
+  "Where can we meet?",
+  "Can I see more photos?",
+  "What is your last price?",
+  "Is it in good condition?",
+  "I'm interested, let's talk."
+];
+
 export const Chat = () => {
   const { id: chatIdParams } = useParams<{ id: string }>();
   const { user, dbUser } = useAuth();
   const { showAlert } = useAlert();
   const location = useLocation();
   const navigate = useNavigate();
-  
+
   const [chats, setChats] = useState<ChatType[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -49,6 +58,17 @@ export const Chat = () => {
       return format(date, 'HH:mm');
     } catch (e) {
       return '--:--';
+    }
+  };
+
+  const getChatTime = (timestamp: any) => {
+    try {
+      if (!timestamp) return 0;
+      if (timestamp.toMillis) return timestamp.toMillis();
+      if (typeof timestamp === 'number') return timestamp;
+      return new Date(timestamp).getTime();
+    } catch (e) {
+      return 0;
     }
   };
 
@@ -124,7 +144,7 @@ export const Chat = () => {
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const chatList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChatType));
-      chatList.sort((a, b) => (b.lastUpdated || 0) - (a.lastUpdated || 0));
+      chatList.sort((a, b) => getChatTime(b.lastUpdated) - getChatTime(a.lastUpdated));
       setChats(chatList);
     }, (error) => {
       console.error("Chats listener error:", error);
@@ -181,7 +201,7 @@ export const Chat = () => {
             { uid: receiverInfo.id, name: receiverInfo.name || 'Student', avatar: '' }
           ],
           lastMessage: offerAmount ? `Sent an offer: ₦${offerAmount.toLocaleString()}` : (textToSend || 'Sent an attachment'),
-          lastUpdated: Date.now(),
+          lastUpdated: serverTimestamp(),
           isRead: false,
           lastSenderId: user.uid
         };
@@ -196,7 +216,7 @@ export const Chat = () => {
       const messageData = {
         text: textToSend,
         senderId: user.uid,
-        createdAt: Date.now(),
+        createdAt: serverTimestamp(),
         ...(taggedItem && { taggedItem }),
         ...(imageUrl && { imageUrl }),
         ...(offerAmount && { offerAmount, offerStatus: 'pending' })
@@ -206,7 +226,7 @@ export const Chat = () => {
 
       await updateDoc(doc(db, 'chats', targetChatId), {
         lastMessage: offerAmount ? `Sent an offer: ₦${offerAmount.toLocaleString()}` : (imageUrl ? 'Shared an image' : (textToSend || 'Sent an attachment')),
-        lastUpdated: Date.now(),
+        lastUpdated: serverTimestamp(),
         isRead: false,
         lastSenderId: user.uid
       });
@@ -250,13 +270,6 @@ export const Chat = () => {
       setError('Image upload failed.');
     }
   };
-
-  const QUICK_ACTIONS = [
-    "Is this still available?",
-    "What's your last price?",
-    "When can I inspect?",
-    "Can you deliver?"
-  ];
 
   const getOtherUser = (chat?: ChatType) => {
     if (!chat || !chat.users || !Array.isArray(chat.users)) return undefined;
