@@ -7,7 +7,7 @@ import { useCart } from '../contexts/CartContext';
 import { useAlert } from '../contexts/AlertContext';
 import type { MarketItem, NestListing } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft01Icon, FavouriteIcon, Location01Icon, Message01Icon, ShoppingBag01Icon, Alert01Icon, Cancel01Icon, Search01Icon, UserCheck01Icon, Tick02Icon, Cancel02Icon } from 'hugeicons-react';
+import { ArrowLeft01Icon, FavouriteIcon, Location01Icon, Message01Icon, ShoppingBag01Icon, Alert01Icon, Cancel01Icon, Search01Icon, UserCheck01Icon, Tick02Icon, Cancel02Icon, WhatsappIcon } from 'hugeicons-react';
 import { VerificationModal } from '../components/modals/VerificationModal';
 
 interface Props {
@@ -37,8 +37,21 @@ export const ItemDetails: React.FC<Props> = ({ type }) => {
   // Match Request States
   const [matchRequest, setMatchRequest] = useState<any>(null);
   const [incomingRequests, setIncomingRequests] = useState<any[]>([]);
+  const [listerData, setListerData] = useState<any>(null);
 
   const isLister = user?.uid === (type === 'market' ? (item as MarketItem)?.sellerId : (item as NestListing)?.listerId);
+
+  useEffect(() => {
+    if (!item) return;
+    const listerId = type === 'market' ? (item as MarketItem).sellerId : (item as NestListing).listerId;
+    const fetchLister = async () => {
+      const userDoc = await getDoc(doc(db, 'users', listerId));
+      if (userDoc.exists()) {
+        setListerData(userDoc.data());
+      }
+    };
+    fetchLister();
+  }, [item, type]);
 
   useEffect(() => {
     if (!id || !user) return;
@@ -215,6 +228,12 @@ export const ItemDetails: React.FC<Props> = ({ type }) => {
     } catch (err) {
       console.error(err);
     }
+  };
+
+  const handleWhatsApp = () => {
+    if (!item || !listerData?.whatsapp) return;
+    const message = `Hello, I'm interested in your listing: ${item.title} on CamSphere.`;
+    window.open(`https://wa.me/${listerData.whatsapp}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
   const handleMessage = () => {
@@ -549,7 +568,7 @@ export const ItemDetails: React.FC<Props> = ({ type }) => {
                             {!isLister && (
                               <div className="space-y-4 mt-8 relative z-20">
                                 {type === 'market' && (
-                                  <>
+                                  <div className="space-y-4">
                                     <button
                                       onClick={() => {
                                         if (item) {
@@ -567,6 +586,25 @@ export const ItemDetails: React.FC<Props> = ({ type }) => {
                                       <ShoppingBag01Icon size={20} />
                                       Add to Bag
                                     </button>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                      {listerData?.whatsapp && (
+                                        <button
+                                          onClick={handleWhatsApp}
+                                          className="py-5 bg-[#25D366] text-white border border-black/10 font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 transition-all cursor-pointer"
+                                        >
+                                          <WhatsappIcon size={20} />
+                                          WhatsApp
+                                        </button>
+                                      )}
+                                      <button
+                                        onClick={handleMessage}
+                                        className="py-5 bg-black dark:bg-white text-white dark:text-black border border-black dark:border-white font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] dark:shadow-[8px_8px_0px_0px_rgba(255,255,255,1)] hover:-translate-y-1 transition-all cursor-pointer"
+                                      >
+                                        <Message01Icon size={20} />
+                                        In-App Chat
+                                      </button>
+                                    </div>
             
                                     {(item as MarketItem).allowOffers && (
                                       <button
@@ -602,7 +640,7 @@ export const ItemDetails: React.FC<Props> = ({ type }) => {
                                         <span className="text-[#FF5A5F]">⚡</span> Make Offer
                                       </button>
                                     )}
-                                  </>
+                                  </div>
                                 )}
 
                                 {type === 'nest' && (item as NestListing).type === 'roommate' ? (
@@ -642,14 +680,26 @@ export const ItemDetails: React.FC<Props> = ({ type }) => {
                                     )}
                                   </>
                                 ) : (
-                                  <motion.button
-                                    whileTap={{ scale: 0.95 }}
-                                    onClick={handleMessage}
-                                    className="w-full py-5 bg-black dark:bg-white text-white dark:text-black font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 transition-colors hover:opacity-80 border border-black dark:border-white cursor-pointer relative z-30"
-                                  >
-                                    <Message01Icon size={20} />
-                                    Message
-                                  </motion.button>
+                                  <div className="grid grid-cols-1 gap-4">
+                                    {listerData?.whatsapp && (
+                                      <motion.button
+                                        whileTap={{ scale: 0.95 }}
+                                        onClick={handleWhatsApp}
+                                        className="w-full py-5 bg-[#25D366] text-white font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 transition-colors hover:opacity-90 border border-black/10 cursor-pointer shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]"
+                                      >
+                                        <WhatsappIcon size={20} />
+                                        WhatsApp Lister
+                                      </motion.button>
+                                    )}
+                                    <motion.button
+                                      whileTap={{ scale: 0.95 }}
+                                      onClick={handleMessage}
+                                      className="w-full py-5 bg-black dark:bg-white text-white dark:text-black font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 transition-colors hover:opacity-80 border border-black dark:border-white cursor-pointer"
+                                    >
+                                      <Message01Icon size={20} />
+                                      In-App Chat
+                                    </motion.button>
+                                  </div>
                                 )}
                               </div>
                             )}          </div>
