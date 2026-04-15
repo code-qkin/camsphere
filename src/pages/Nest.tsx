@@ -93,8 +93,14 @@ export const Nest = () => {
           const outgoing = snapO.docs.map(d => ({ id: d.id, ...d.data(), type: 'outgoing' } as any));
           setRequests([...incoming, ...outgoing].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)));
           setLoading(false);
+        }, (err) => {
+          console.error("Outgoing requests snapshot error:", err);
+          setLoading(false);
         });
         return () => unsubOutgoing();
+      }, (err) => {
+        console.error("Incoming requests snapshot error:", err);
+        setLoading(false);
       });
 
       return () => unsubIncoming();
@@ -109,6 +115,9 @@ export const Nest = () => {
 
       const unsubscribe = onSnapshot(q, (snapshot) => {
         setItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as NestListing)));
+        setLoading(false);
+      }, (err) => {
+        console.error("Nest listings snapshot error:", err);
         setLoading(false);
       });
 

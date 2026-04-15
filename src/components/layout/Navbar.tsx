@@ -25,13 +25,13 @@ export const Navbar: React.FC = () => {
     // Notifications unread
     const unsubNotifs = onSnapshot(query(collection(db, 'notifications'), where('userId', '==', user.uid), where('isRead', '==', false)), (snap) => {
       setUnreadNotifications(snap.size);
-    });
+    }, (err) => console.error("Navbar notifications error:", err));
 
     // Chats unread
     const unsubChats = onSnapshot(query(collection(db, 'chats'), where('participants', 'array-contains', user.uid)), (snap) => {
       const count = snap.docs.filter(d => !d.data().isRead && d.data().lastSenderId !== user.uid).length;
       setUnreadChats(count);
-    });
+    }, (err) => console.error("Navbar chats error:", err));
 
     return () => {
       unsubNotifs();

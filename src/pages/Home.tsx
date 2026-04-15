@@ -30,7 +30,7 @@ export const Home = () => {
       } else {
         setLatestNotif(null);
       }
-    });
+    }, (err) => console.error("Home notifications error:", err));
   }, [user]);
 
   useEffect(() => {

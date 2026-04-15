@@ -101,44 +101,44 @@ export const AdminDashboard = () => {
     const unsubV = onSnapshot(query(collection(db, 'verifications'), where('status', '==', 'pending')), (snap) => {
       setVerifications(snap.docs.map(d => ({ id: d.id, ...d.data() } as unknown as Verification)));
       setStats(prev => ({ ...prev, pendingVerifications: snap.size }));
-    });
+    }, (err) => console.error("Verifications snapshot error:", err));
 
     const unsubU = onSnapshot(collection(db, 'users'), (snap) => {
       setUsers(snap.docs.map(d => ({ uid: d.id, ...d.data() } as unknown as User)));
       setStats(prev => ({ ...prev, totalUsers: snap.size }));
-    });
+    }, (err) => console.error("Users snapshot error:", err));
 
     const unsubM = onSnapshot(collection(db, 'market_items'), (snap) => {
       setMarketItems(snap.docs.map(d => ({ id: d.id, ...d.data() } as unknown as MarketItem)));
       setStats(prev => ({ ...prev, activeMarket: snap.size }));
-    });
+    }, (err) => console.error("MarketItems snapshot error:", err));
 
     const unsubN = onSnapshot(collection(db, 'nest_listings'), (snap) => {
       setNestListings(snap.docs.map(d => ({ id: d.id, ...d.data() } as unknown as NestListing)));
       setStats(prev => ({ ...prev, activeLodges: snap.size }));
-    });
+    }, (err) => console.error("NestListings snapshot error:", err));
 
     const unsubR = onSnapshot(query(collection(db, 'reports'), where('status', '==', 'open')), (snap) => {
       setReports(snap.docs.map(d => ({ id: d.id, ...d.data() } as unknown as Report)));
-    });
+    }, (err) => console.error("Reports snapshot error:", err));
 
     const unsubA = onSnapshot(query(collection(db, 'users'), where('role', '==', 'pending_admin')), (snap) => {
       setPendingAdmins(snap.docs.map(d => ({ uid: d.id, ...d.data() } as unknown as User)));
-    });
+    }, (err) => console.error("PendingAdmins snapshot error:", err));
 
     const unsubS = onSnapshot(query(collection(db, 'universities'), orderBy('createdAt', 'desc')), (snap) => {
       setSchools(snap.docs.map(d => ({ id: d.id, ...d.data() } as unknown as University)));
-    });
+    }, (err) => console.error("Universities snapshot error:", err));
 
     const unsubNotifs = onSnapshot(query(collection(db, 'notifications'), where('userId', '==', user.uid), orderBy('createdAt', 'desc')), (snap) => {
       setNotifications(snap.docs.map(d => ({ id: d.id, ...d.data() } as unknown as Notification)));
-    });
+    }, (err) => console.error("Notifications snapshot error:", err));
 
     let unsubLogs = () => {};
     if (isLead) {
       unsubLogs = onSnapshot(query(collection(db, 'action_logs'), orderBy('timestamp', 'desc'), limit(50)), (snap) => {
         setActionLogs(snap.docs.map(d => ({ id: d.id, ...d.data() } as ActionLog)));
-      });
+      }, (err) => console.error("ActionLogs snapshot error:", err));
     }
 
     return () => {

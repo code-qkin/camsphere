@@ -91,6 +91,8 @@ export const ItemDetails: React.FC<Props> = ({ type }) => {
       } else {
         setMatchRequest(null);
       }
+    }, (err) => {
+      console.error("Match request snapshot error:", err);
     });
 
     // Check for inspection request
@@ -105,6 +107,8 @@ export const ItemDetails: React.FC<Props> = ({ type }) => {
       } else {
         setInspectionRequest(null);
       }
+    }, (err) => {
+      console.error("Inspection request snapshot error:", err);
     });
 
     // If I am the lister, check for incoming requests
@@ -118,6 +122,8 @@ export const ItemDetails: React.FC<Props> = ({ type }) => {
       );
       unsubIncoming = onSnapshot(qIncoming, (snap) => {
         setIncomingRequests(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      }, (err) => {
+        console.error("Incoming requests snapshot error:", err);
       });
     }
 
