@@ -152,9 +152,12 @@ export const Nest = () => {
         });
       } else {
         console.error(err);
+        const isPermissionError = err.message?.toLowerCase().includes('permission') || err.code?.includes('permission');
         showAlert({
           title: 'Transmission Error',
-          message: 'Secure link failed. Please check your connection and retry.',
+          message: isPermissionError 
+            ? 'Security restriction: Your account permissions are insufficient for this request. Please contact support.' 
+            : 'Secure link failed. Please check your connection and retry.',
           type: 'warning'
         });
       }
