@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { doc, getDoc, collection, addDoc, deleteDoc, query, where, getDocs, updateDoc } from 'firebase/firestore';
-import { db } from '../services/firebase';
+import { doc, getDoc, collection, addDoc, deleteDoc, query, where, getDocs, updateDoc, onSnapshot } from 'firebase/firestore';
+import { db, sendMatchRequest, respondToMatchRequest } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 import { useAlert } from '../contexts/AlertContext';
 import type { MarketItem, NestListing } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft01Icon, FavouriteIcon, Location01Icon, Message01Icon, ShoppingBag01Icon, Alert01Icon, Cancel01Icon, Search01Icon } from 'hugeicons-react';
+import { ArrowLeft01Icon, FavouriteIcon, Location01Icon, Message01Icon, ShoppingBag01Icon, Alert01Icon, Cancel01Icon, Search01Icon, UserCheck01Icon, Tick02Icon, Cancel02Icon } from 'hugeicons-react';
+import { VerificationModal } from '../components/modals/VerificationModal';
 
 interface Props {
   type: 'market' | 'nest';
@@ -16,7 +17,7 @@ interface Props {
 export const ItemDetails: React.FC<Props> = ({ type }) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, dbUser } = useAuth();
   const { addToCart } = useCart();
   const { showAlert } = useAlert();
   const [item, setItem] = useState<MarketItem | NestListing | null>(null);
@@ -30,90 +31,88 @@ export const ItemDetails: React.FC<Props> = ({ type }) => {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [isReporting, setIsReporting] = useState(false);
+  const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
+  const [pendingAlert, setPendingAlert] = useState(false);
+
+  // Match Request States
+  const [matchRequest, setMatchRequest] = useState<any>(null);
+  const [incomingRequests, setIncomingRequests] = useState<any[]>([]);
 
   useEffect(() => {
-    if (!id || !user) return;
+    if (!id || !user || type !== 'nest') return;
 
-    const fetchItem = async () => {
-      try {
-        const collectionName = type === 'market' ? 'market_items' : 'nest_listings';
-        const docRef = doc(db, collectionName, id);
-        const docSnap = await getDoc(docRef);
-
-        if (docSnap.exists()) {
-          setItem({ id: docSnap.id, ...docSnap.data() } as any);
-        }
-
-        // Check favorite
-        const q = query(
-          collection(db, 'favorites'),
-          where('userId', '==', user.uid),
-          where('itemId', '==', id)
-        );
-        const favSnap = await getDocs(q);
-        if (!favSnap.empty) {
-          setIsFavorite(true);
-          setFavoriteId(favSnap.docs[0].id);
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
+    // Check for my own request to this listing
+    const q = query(
+      collection(db, 'match_requests'),
+      where('listingId', '==', id),
+      where('senderId', '==', user.uid)
+    );
+    
+    const unsub = onSnapshot(q, (snap) => {
+      if (!snap.empty) {
+        setMatchRequest({ id: snap.docs[0].id, ...snap.docs[0].data() });
+      } else {
+        setMatchRequest(null);
       }
+    });
+
+    // If I am the lister, check for incoming requests
+    let unsubIncoming: any;
+    if (isLister) {
+      const qIncoming = query(
+        collection(db, 'match_requests'),
+        where('listingId', '==', id),
+        where('status', '==', 'pending')
+      );
+      unsubIncoming = onSnapshot(qIncoming, (snap) => {
+        setIncomingRequests(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      });
+    }
+
+    return () => {
+      unsub();
+      if (unsubIncoming) unsubIncoming();
     };
+  }, [id, user, type, isLister]);
 
-    fetchItem();
-  }, [id, type, user]);
+  const handleMatchRequest = async () => {
+    if (!item || !user || !dbUser) return;
 
-  const toggleFavorite = async () => {
-    if (!user || !item) return;
+    // Safety check: Only verified or staff can send match requests
+    const isStaff = dbUser.role === 'admin' || dbUser.role === 'lead_admin';
+    if (dbUser.verificationStatus !== 'approved' && !isStaff) {
+      if (dbUser.verificationStatus === 'pending') {
+        setPendingAlert(true);
+        setTimeout(() => setPendingAlert(false), 4000);
+      } else {
+        setIsVerifyModalOpen(true);
+      }
+      return;
+    }
 
     try {
-      if (isFavorite && favoriteId) {
-        await deleteDoc(doc(db, 'favorites', favoriteId));
-        setIsFavorite(false);
-        setFavoriteId(null);
-      } else {
-        const docRef = await addDoc(collection(db, 'favorites'), {
-          userId: user.uid,
-          itemId: item.id,
-          itemType: type,
-          itemData: item,
-          createdAt: Date.now()
-        });
-        setIsFavorite(true);
-        setFavoriteId(docRef.id);
-      }
+      await sendMatchRequest(item, user);
+      showAlert({
+        title: 'Request Sent',
+        message: 'Your match request has been transmitted. You will be notified if they accept.',
+        type: 'success'
+      });
     } catch (err) {
       console.error(err);
     }
   };
 
-  const submitReport = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user || !item || !reportReason.trim()) return;
-    setIsReporting(true);
+  const handleResponse = async (requestId: string, status: 'accepted' | 'rejected', senderId: string) => {
+    if (!item || !user) return;
     try {
-      await addDoc(collection(db, 'reports'), {
-        targetId: item.id,
-        type: 'item',
-        itemType: type,
-        reason: reportReason.trim(),
-        reporterId: user.uid,
-        status: 'open',
-        createdAt: Date.now()
-      });
-      setIsReportModalOpen(false);
-      setReportReason('');
+      await respondToMatchRequest(requestId, status, item, senderId, (item as NestListing).listerName);
       showAlert({
-        title: 'Report Received',
-        message: 'Platform staff will audit this listing within 24 hours. Thank you for securing the network.',
+        title: status === 'accepted' ? 'Match Confirmed' : 'Request Declined',
+        message: status === 'accepted' ? 'Connection established. You can now start messaging.' : 'The request has been removed.',
         type: 'success'
       });
     } catch (err) {
-      console.error("Report failed:", err);
-    } finally {
-      setIsReporting(false);
+      console.error(err);
     }
   };
 
@@ -394,6 +393,44 @@ export const ItemDetails: React.FC<Props> = ({ type }) => {
           </div>
 
           <div className="border-t border-black/10 dark:border-white/10 p-8 sm:p-12 bg-gray-50 dark:bg-[#0a0a0a] mt-auto">
+            {/* Incoming Requests for Lister */}
+            {isLister && type === 'nest' && (item as NestListing).type === 'roommate' && incomingRequests.length > 0 && (
+              <div className="mb-10 space-y-6">
+                <h3 className="text-xs font-black text-[#FF5A5F] uppercase tracking-[0.3em] border-b border-[#FF5A5F]/20 pb-4">
+                  Incoming Match Requests ({incomingRequests.length})
+                </h3>
+                <div className="space-y-4">
+                  {incomingRequests.map((req) => (
+                    <div key={req.id} className="p-6 bg-white dark:bg-black border border-black dark:border-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)]">
+                      <div className="flex items-center gap-4 mb-4">
+                        <div className="w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center font-black text-xs border border-black/10">
+                          {req.senderPhoto ? <img src={req.senderPhoto} alt="" className="w-full h-full rounded-full object-cover" /> : req.senderName?.[0]}
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-black dark:text-white">{req.senderName}</p>
+                          <p className="text-[8px] font-bold text-gray-500 uppercase tracking-widest">Wants to match</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => handleResponse(req.id, 'accepted', req.senderId)}
+                          className="flex-1 py-2 bg-black text-white dark:bg-white dark:text-black text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#B1A9FF] hover:text-black transition-colors"
+                        >
+                          <Tick02Icon size={14} /> Accept
+                        </button>
+                        <button 
+                          onClick={() => handleResponse(req.id, 'rejected', req.senderId)}
+                          className="px-4 py-2 border border-black/10 dark:border-white/10 text-gray-400 hover:text-red-500 transition-colors"
+                        >
+                          <Cancel02Icon size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <Link 
               to={`/profile/${type === 'market' ? (item as MarketItem).sellerId : (item as NestListing).listerId}`}
               className="flex items-center gap-6 mb-8 group/seller"
@@ -467,14 +504,53 @@ export const ItemDetails: React.FC<Props> = ({ type }) => {
                                     )}
                                   </>
                                 )}
-                                <motion.button
-                                  whileTap={{ scale: 0.95 }}
-                                  onClick={handleMessage}
-                                  className="w-full py-5 bg-black dark:bg-white text-white dark:text-black font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 transition-colors hover:opacity-80 border border-black dark:border-white cursor-pointer relative z-30"
-                                >
-                                  <Message01Icon size={20} />
-                                  Message
-                                </motion.button>
+
+                                {type === 'nest' && (item as NestListing).type === 'roommate' ? (
+                                  <>
+                                    {!matchRequest ? (
+                                      <motion.button
+                                        whileTap={{ scale: 0.95 }}
+                                        onClick={handleMatchRequest}
+                                        className="w-full py-5 bg-black dark:bg-white text-white dark:text-black font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 transition-colors hover:bg-[#B1A9FF] hover:text-black border border-black dark:border-white cursor-pointer shadow-[8px_8px_0px_0px_rgba(177,169,255,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1"
+                                      >
+                                        <UserCheck01Icon size={20} />
+                                        Send Match Request
+                                      </motion.button>
+                                    ) : matchRequest.status === 'pending' ? (
+                                      <button
+                                        disabled
+                                        className="w-full py-5 bg-gray-100 dark:bg-gray-800 text-gray-400 font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 border border-black/10 cursor-not-allowed"
+                                      >
+                                        Request Pending
+                                      </button>
+                                    ) : matchRequest.status === 'accepted' ? (
+                                      <motion.button
+                                        whileTap={{ scale: 0.95 }}
+                                        onClick={handleMessage}
+                                        className="w-full py-5 bg-[#B1A9FF] text-black font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 transition-colors hover:opacity-80 border border-black cursor-pointer shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]"
+                                      >
+                                        <Message01Icon size={20} />
+                                        Start Chatting
+                                      </motion.button>
+                                    ) : (
+                                      <button
+                                        disabled
+                                        className="w-full py-5 bg-red-50 text-red-500 font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 border border-red-200 cursor-not-allowed"
+                                      >
+                                        Request Declined
+                                      </button>
+                                    )}
+                                  </>
+                                ) : (
+                                  <motion.button
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={handleMessage}
+                                    className="w-full py-5 bg-black dark:bg-white text-white dark:text-black font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 transition-colors hover:opacity-80 border border-black dark:border-white cursor-pointer relative z-30"
+                                  >
+                                    <Message01Icon size={20} />
+                                    Message
+                                  </motion.button>
+                                )}
                               </div>
                             )}          </div>
         </div>
@@ -585,6 +661,19 @@ export const ItemDetails: React.FC<Props> = ({ type }) => {
               </form>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+      <VerificationModal isOpen={isVerifyModalOpen} onClose={() => setIsVerifyModalOpen(false)} />
+      <AnimatePresence>
+        {pendingAlert && (
+          <motion.div 
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -50 }}
+            className="fixed top-24 left-1/2 -translate-x-1/2 z-[150] bg-black text-white px-8 py-4 border border-white/20 shadow-2xl text-[10px] font-black uppercase tracking-[0.3em]"
+          >
+            Verification // Pending Review
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

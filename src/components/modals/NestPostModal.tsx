@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import { db } from '../../services/firebase';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc } from 'firebase/firestore';
 import { uploadToCloudinary } from '../../services/cloudinary';
 import { Cancel01Icon, Image01Icon } from 'hugeicons-react';
 
@@ -84,6 +84,19 @@ export const NestPostModal: React.FC<Props> = ({ isOpen, onClose, defaultType })
       const imageUrls = await Promise.all(
         images.map(img => uploadToCloudinary(img))
       );
+
+      // Save user quiz to profile if listing a roommate
+      if (type === 'roommate') {
+        const userRef = doc(db, 'users', user.uid);
+        await updateDoc(userRef, {
+          lifestyleQuiz: {
+            sleepSchedule,
+            cleanliness,
+            guests,
+            studyHabit
+          }
+        });
+      }
 
       await addDoc(collection(db, 'nest_listings'), {
         type,

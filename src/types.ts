@@ -15,6 +15,12 @@ export interface User {
     itemsSold: number;
     listingsCreated: number;
   };
+  lifestyleQuiz?: {
+    sleepSchedule: 'early' | 'night';
+    cleanliness: 1 | 2 | 3 | 4 | 5;
+    guests: 'never' | 'occasional' | 'frequent';
+    studyHabit: 'quiet' | 'background';
+  };
 }
 
 export interface Verification {
