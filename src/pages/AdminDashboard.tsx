@@ -130,7 +130,12 @@ export const AdminDashboard = () => {
       setSchools(snap.docs.map(d => ({ id: d.id, ...d.data() } as unknown as University)));
     }, (err) => console.error("Universities snapshot error:", err));
 
-    const unsubNotifs = onSnapshot(query(collection(db, 'notifications'), where('userId', '==', user.uid), orderBy('createdAt', 'desc')), (snap) => {
+    const unsubNotifs = onSnapshot(query(
+      collection(db, 'notifications'), 
+      where('university', '==', dbUser?.university || ''),
+      where('userId', '==', user.uid), 
+      orderBy('createdAt', 'desc')
+    ), (snap) => {
       setNotifications(snap.docs.map(d => ({ id: d.id, ...d.data() } as unknown as Notification)));
     }, (err) => console.error("Notifications snapshot error:", err));
 
@@ -193,6 +198,7 @@ export const AdminDashboard = () => {
           message: broadcastMessage,
           type: 'warning',
           isRead: false,
+          university: userDoc.data().university || '',
           createdAt: Date.now()
         });
       });

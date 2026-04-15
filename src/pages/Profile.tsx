@@ -84,15 +84,27 @@ export const Profile = () => {
   const fetchUserData = async (targetUid: string) => {
     try {
       if (activeTab === 'market') {
-        const q = query(collection(db, 'market_items'), where('sellerId', '==', targetUid));
+        const q = query(
+          collection(db, 'market_items'), 
+          where('university', '==', dbUser?.university || ''),
+          where('sellerId', '==', targetUid)
+        );
         const snap = await getDocs(q);
         setMarketItems(snap.docs.map(d => ({ id: d.id, ...d.data() } as MarketItem)));
       } else if (activeTab === 'nest') {
-        const q = query(collection(db, 'nest_listings'), where('listerId', '==', targetUid));
+        const q = query(
+          collection(db, 'nest_listings'), 
+          where('university', '==', dbUser?.university || ''),
+          where('listerId', '==', targetUid)
+        );
         const snap = await getDocs(q);
         setNestItems(snap.docs.map(d => ({ id: d.id, ...d.data() } as NestListing)));
       } else if (activeTab === 'favorites' && isOwnProfile) {
-        const q = query(collection(db, 'favorites'), where('userId', '==', targetUid));
+        const q = query(
+          collection(db, 'favorites'), 
+          where('university', '==', dbUser?.university || ''),
+          where('userId', '==', targetUid)
+        );
         const snap = await getDocs(q);
         setFavorites(snap.docs.map(d => ({ id: d.id, ...d.data() } as Favorite)));
       }
@@ -107,10 +119,11 @@ export const Profile = () => {
     setIsReporting(true);
     try {
       await addDoc(collection(db, 'reports'), {
-        targetId: profileUser.uid,
+        targetId: profileId,
         type: 'user',
         reason: reportReason.trim(),
         reporterId: user.uid,
+        university: dbUser.university,
         status: 'open',
         createdAt: Date.now()
       });
@@ -118,7 +131,7 @@ export const Profile = () => {
       setReportReason('');
       showAlert({
         title: 'Report Received',
-        message: 'Our staff will investigate this user profile. Thank you for maintaining network integrity.',
+        message: 'Security staff will audit this account within 24 hours. Thank you for securing the network.',
         type: 'success'
       });
     } catch (err) {

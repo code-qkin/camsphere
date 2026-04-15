@@ -25,7 +25,7 @@ export const sendMatchRequest = async (listing: any, sender: any) => {
   // Check for existing request - MUST include university for rules
   const q = query(
     collection(db, 'match_requests'),
-    where('university', '==', listing.university),
+    where('university', '==', listing.university || sender.university || ''),
     where('listingId', '==', listing.id),
     where('senderId', '==', sender.uid)
   );
@@ -50,7 +50,6 @@ export const sendMatchRequest = async (listing: any, sender: any) => {
     createdAt: Date.now()
   });
 
-  /*
   // 2. Notify the lister
   const notificationRef = collection(db, 'notifications');
   await addDoc(notificationRef, {
@@ -59,10 +58,10 @@ export const sendMatchRequest = async (listing: any, sender: any) => {
     message: `${sender.displayName} wants to match as a roommate for "${listing.title}".`,
     type: 'success',
     isRead: false,
+    university: listing.university || sender.university || '',
     link: `/nest/${listing.id}`,
     createdAt: Date.now()
   });
-  */
 };
 
 export const sendInspectionRequest = async (listing: any, sender: any) => {
@@ -71,7 +70,7 @@ export const sendInspectionRequest = async (listing: any, sender: any) => {
   // Check for existing request - MUST include university for rules
   const q = query(
     collection(db, 'inspection_requests'),
-    where('university', '==', listing.university),
+    where('university', '==', listing.university || sender.university || ''),
     where('listingId', '==', listing.id),
     where('senderId', '==', sender.uid)
   );
@@ -100,6 +99,7 @@ export const sendInspectionRequest = async (listing: any, sender: any) => {
     message: `${sender.displayName} wants to inspect your lodge: "${listing.title}".`,
     type: 'info',
     isRead: false,
+    university: listing.university || sender.university || '',
     link: `/nest/${listing.id}`,
     createdAt: Date.now()
   });
@@ -120,6 +120,7 @@ export const respondToMatchRequest = async (requestId: string, status: 'accepted
       : `${listerName} declined the match request for ${listing.title}.`,
     type: status === 'accepted' ? 'success' : 'info',
     isRead: false,
+    university: listing.university || '',
     link: status === 'accepted' ? `/nest/${listing.id}` : '/nest',
     createdAt: Date.now()
   });

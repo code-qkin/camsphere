@@ -16,9 +16,10 @@ export const Home = () => {
   const [latestNotif, setLatestNotif] = useState<Notification | null>(null);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !dbUser?.university) return;
     const q = query(
       collection(db, 'notifications'),
+      where('university', '==', dbUser.university),
       where('userId', '==', user.uid),
       where('isRead', '==', false),
       orderBy('createdAt', 'desc'),

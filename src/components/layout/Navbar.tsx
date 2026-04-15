@@ -23,7 +23,12 @@ export const Navbar: React.FC = () => {
     if (!user) return;
     
     // Notifications unread
-    const unsubNotifs = onSnapshot(query(collection(db, 'notifications'), where('userId', '==', user.uid), where('isRead', '==', false)), (snap) => {
+    const unsubNotifs = onSnapshot(query(
+      collection(db, 'notifications'), 
+      where('university', '==', dbUser?.university || ''),
+      where('userId', '==', user.uid), 
+      where('isRead', '==', false)
+    ), (snap) => {
       setUnreadNotifications(snap.size);
     }, (err) => console.error("Navbar notifications error:", err));
 

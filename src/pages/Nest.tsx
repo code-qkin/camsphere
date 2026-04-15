@@ -84,8 +84,16 @@ export const Nest = () => {
     if (currentTab === 'matches') {
       setLoading(true);
       // Fetch incoming and outgoing match requests
-      const qIncoming = query(collection(db, 'match_requests'), where('listerId', '==', dbUser.uid));
-      const qOutgoing = query(collection(db, 'match_requests'), where('senderId', '==', dbUser.uid));
+      const qIncoming = query(
+        collection(db, 'match_requests'), 
+        where('university', '==', dbUser.university),
+        where('listerId', '==', dbUser.uid)
+      );
+      const qOutgoing = query(
+        collection(db, 'match_requests'), 
+        where('university', '==', dbUser.university),
+        where('senderId', '==', dbUser.uid)
+      );
 
       const unsubIncoming = onSnapshot(qIncoming, (snapI) => {
         const incoming = snapI.docs.map(d => ({ id: d.id, ...d.data(), type: 'incoming' } as any));

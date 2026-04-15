@@ -151,6 +151,7 @@ export const ItemDetails: React.FC<Props> = ({ type }) => {
           itemId: item.id,
           itemType: type,
           itemData: item,
+          university: item.university,
           createdAt: Date.now()
         });
         setIsFavorite(true);
@@ -172,6 +173,7 @@ export const ItemDetails: React.FC<Props> = ({ type }) => {
         itemType: type,
         reason: reportReason.trim(),
         reporterId: user.uid,
+        university: item.university,
         status: 'open',
         createdAt: Date.now()
       });
