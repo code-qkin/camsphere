@@ -1,0 +1,129 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- HELPER FUNCTIONS ---
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && getUserData().role in ['admin', 'lead_admin'];
+    }
+
+    function isLeadAdmin() {
+      return isAuthenticated() && getUserData().role == 'lead_admin';
+    }
+
+    function isVerified() {
+      return isAuthenticated() && getUserData().verificationStatus == 'approved';
+    }
+
+    // --- COLLECTION RULES ---
+
+    // USERS: Profile and Role Management
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isOwner(userId);
+      allow update: if isAdmin() || (
+        isOwner(userId) &&
+        // Prevent users from escalating their own role or verification status
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'verificationStatus', 'rejectionReason', 'stats'])
+      );
+      allow delete: if isAdmin();
+    }
+
+    // VERIFICATIONS: Sensitive ID documents
+    match /verifications/{docId} {
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // MARKETPLACE: Buying and Selling
+    match /market_items/{itemId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isVerified();
+      allow update, delete: if isAdmin() || isOwner(resource.data.sellerId);
+    }
+
+    // NEST: Housing and Roommates
+    match /nest_listings/{listingId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isVerified();
+      allow update, delete: if isAdmin() || isOwner(resource.data.listerId);
+    }
+
+    // MATCH REQUESTS: Roommate connections
+    match /match_requests/{requestId} {
+      allow read: if isAuthenticated() && (isOwner(resource.data.senderId) || isOwner(resource.data.listerId));
+      allow create: if isAuthenticated() && isVerified() && request.resource.data.senderId == request.auth.uid;
+      allow update: if isAuthenticated() && (isOwner(resource.data.listerId) || isOwner(resource.data.senderId));
+      allow delete: if isAdmin();
+    }
+
+    // INSPECTION REQUESTS: Lodge viewings
+    match /inspection_requests/{requestId} {
+      allow read: if isAuthenticated() && (isOwner(resource.data.senderId) || isOwner(resource.data.listerId));
+      allow create: if isAuthenticated() && isVerified() && request.resource.data.senderId == request.auth.uid;
+      allow update: if isAuthenticated() && (isOwner(resource.data.listerId) || isOwner(resource.data.senderId));
+      allow delete: if isAdmin();
+    }
+
+    // CHATS: Private Messaging
+    match /chats/{chatId} {
+      allow read, update: if isAuthenticated() && request.auth.uid in resource.data.participants;
+      allow create: if isAuthenticated() && request.resource.data.participants.hasAll([request.auth.uid]);
+
+      match /messages/{msgId} {
+        allow read: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+        allow create: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+        allow update, delete: if false; // Messages are immutable for audit integrity
+      }
+    }
+
+    // REPORTS: Safety and Disputes
+    match /reports/{reportId} {
+      allow create: if isAuthenticated();
+      allow read, update, delete: if isAdmin();
+    }
+
+    // UNIVERSITIES: Global Network Configuration
+    match /universities/{uniId} {
+      allow read: if isAuthenticated();
+      allow write: if isLeadAdmin();
+    }
+
+    // NOTIFICATIONS: User Alerts
+    match /notifications/{notifId} {
+      allow read, update, delete: if isAuthenticated() && isOwner(resource.data.userId);
+      allow create: if isAuthenticated(); // Allow users to notify each other for match requests
+    }
+
+    // FAVORITES: User Bookmarks
+    match /favorites/{favId} {
+      allow read, delete: if isAuthenticated() && isOwner(resource.data.userId);
+      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
+    }
+
+    // ACTION LOGS: Admin Accountability
+    match /action_logs/{logId} {
+      allow read: if isLeadAdmin();
+      allow create: if isAdmin();
+      allow update, delete: if false; // Logs cannot be modified
+    }
+
+    // GLOBAL DENY
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -51,17 +51,21 @@ export const sendMatchRequest = async (listing: any, sender: any) => {
   });
 
   // 2. Notify the lister
-  const notificationRef = collection(db, 'notifications');
-  await addDoc(notificationRef, {
-    userId: listing.listerId,
-    title: 'New Match Request!',
-    message: `${sender.displayName} wants to match as a roommate for "${listing.title}".`,
-    type: 'success',
-    isRead: false,
-    university: listing.university || sender.university || '',
-    link: `/nest/${listing.id}`,
-    createdAt: Date.now()
-  });
+  try {
+    const notificationRef = collection(db, 'notifications');
+    await addDoc(notificationRef, {
+      userId: listing.listerId,
+      title: 'New Match Request!',
+      message: `${sender.displayName} wants to match as a roommate for "${listing.title}".`,
+      type: 'success',
+      isRead: false,
+      university: listing.university || sender.university || '',
+      link: `/nest/${listing.id}`,
+      createdAt: Date.now()
+    });
+  } catch (e) {
+    console.error("Non-critical error: Could not deliver in-app notification.", e);
+  }
 };
 
 export const sendInspectionRequest = async (listing: any, sender: any) => {
@@ -92,17 +96,21 @@ export const sendInspectionRequest = async (listing: any, sender: any) => {
     createdAt: Date.now()
   });
 
-  const notificationRef = collection(db, 'notifications');
-  await addDoc(notificationRef, {
-    userId: listing.listerId,
-    title: 'Inspection Request!',
-    message: `${sender.displayName} wants to inspect your lodge: "${listing.title}".`,
-    type: 'info',
-    isRead: false,
-    university: listing.university || sender.university || '',
-    link: `/nest/${listing.id}`,
-    createdAt: Date.now()
-  });
+  try {
+    const notificationRef = collection(db, 'notifications');
+    await addDoc(notificationRef, {
+      userId: listing.listerId,
+      title: 'Inspection Request!',
+      message: `${sender.displayName} wants to inspect your lodge: "${listing.title}".`,
+      type: 'info',
+      isRead: false,
+      university: listing.university || sender.university || '',
+      link: `/nest/${listing.id}`,
+      createdAt: Date.now()
+    });
+  } catch (e) {
+    console.error("Non-critical error: Could not deliver in-app notification.", e);
+  }
 };
 
 export const respondToMatchRequest = async (requestId: string, status: 'accepted' | 'rejected', listing: any, senderId: string, listerName: string) => {
@@ -112,16 +120,20 @@ export const respondToMatchRequest = async (requestId: string, status: 'accepted
   });
 
   // Notify the sender
-  await addDoc(collection(db, 'notifications'), {
-    userId: senderId,
-    title: status === 'accepted' ? 'Match Request Accepted!' : 'Match Request Update',
-    message: status === 'accepted' 
-      ? `${listerName} accepted your match request for ${listing.title}. You can now start chatting!` 
-      : `${listerName} declined the match request for ${listing.title}.`,
-    type: status === 'accepted' ? 'success' : 'info',
-    isRead: false,
-    university: listing.university || '',
-    link: status === 'accepted' ? `/nest/${listing.id}` : '/nest',
-    createdAt: Date.now()
-  });
+  try {
+    await addDoc(collection(db, 'notifications'), {
+      userId: senderId,
+      title: status === 'accepted' ? 'Match Request Accepted!' : 'Match Request Update',
+      message: status === 'accepted' 
+        ? `${listerName} accepted your match request for ${listing.title}. You can now start chatting!` 
+        : `${listerName} declined the match request for ${listing.title}.`,
+      type: status === 'accepted' ? 'success' : 'info',
+      isRead: false,
+      university: listing.university || '',
+      link: status === 'accepted' ? `/nest/${listing.id}` : '/nest',
+      createdAt: Date.now()
+    });
+  } catch (e) {
+    console.error("Non-critical error: Could not deliver in-app notification.", e);
+  }
 };
