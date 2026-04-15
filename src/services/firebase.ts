@@ -17,6 +17,11 @@ export const db = getFirestore(app);
 export const googleProvider = new GoogleAuthProvider();
 
 export const sendMatchRequest = async (listing: any, sender: any) => {
+  // Prevent self-matching
+  if (listing.listerId === sender.uid) {
+    throw new Error('SELF_MATCH_ATTEMPT');
+  }
+
   // Check for existing request
   const q = query(
     collection(db, 'match_requests'),

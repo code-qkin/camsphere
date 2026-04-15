@@ -144,6 +144,12 @@ export const Nest = () => {
           message: 'You have already transmitted a request for this listing.',
           type: 'info'
         });
+      } else if (err.message === 'SELF_MATCH_ATTEMPT') {
+        showAlert({
+          title: 'Restricted Action',
+          message: 'You cannot match with your own listing. This is your personal entry.',
+          type: 'warning'
+        });
       } else {
         console.error(err);
         showAlert({
@@ -436,7 +442,7 @@ export const Nest = () => {
                       <CompatibilityMeter listing={item} currentUser={dbUser} />
                       
                       <div className="space-y-6">
-                        {item.type === 'roommate' ? (
+                        {item.type === 'roommate' && item.listerId !== dbUser?.uid ? (
                           <button 
                             onClick={(e) => handleMatchRequest(e, item)}
                             className="w-full py-4 bg-black text-white dark:bg-white dark:text-black text-[10px] font-black uppercase tracking-[0.3em] hover:bg-[#B1A9FF] hover:text-black transition-all flex items-center justify-center gap-3 border border-black dark:border-white group/btn"
@@ -448,7 +454,7 @@ export const Nest = () => {
                             onClick={() => navigate(`/nest/${item.id}`)}
                             className="w-full py-4 border border-black dark:border-white text-[10px] font-black uppercase tracking-[0.3em] hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all"
                           >
-                            View Details
+                            {item.listerId === dbUser?.uid ? 'Manage Listing' : 'View Details'}
                           </button>
                         )}
 
