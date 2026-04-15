@@ -59,6 +59,41 @@ export const sendMatchRequest = async (listing: any, sender: any) => {
   });
 };
 
+export const sendInspectionRequest = async (listing: any, sender: any) => {
+  if (listing.listerId === sender.uid) throw new Error('SELF_INSPECTION_ATTEMPT');
+
+  const q = query(
+    collection(db, 'inspection_requests'),
+    where('listingId', '==', listing.id),
+    where('senderId', '==', sender.uid)
+  );
+  
+  const existing = await getDocs(q);
+  if (!existing.empty) throw new Error('DUPLICATE_INSPECTION');
+
+  const requestRef = collection(db, 'inspection_requests');
+  await addDoc(requestRef, {
+    listingId: listing.id,
+    listerId: listing.listerId,
+    senderId: sender.uid,
+    senderName: sender.displayName,
+    senderPhoto: sender.photoURL,
+    status: 'pending',
+    createdAt: Date.now()
+  });
+
+  const notificationRef = collection(db, 'notifications');
+  await addDoc(notificationRef, {
+    userId: listing.listerId,
+    title: 'Inspection Request!',
+    message: `${sender.displayName} wants to inspect your lodge: "${listing.title}".`,
+    type: 'info',
+    isRead: false,
+    link: `/nest/${listing.id}`,
+    createdAt: Date.now()
+  });
+};
+
 export const respondToMatchRequest = async (requestId: string, status: 'accepted' | 'rejected', listing: any, senderId: string, listerName: string) => {
   await updateDoc(doc(db, 'match_requests', requestId), { 
     status,

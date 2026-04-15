@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { doc, getDoc, collection, addDoc, deleteDoc, query, where, getDocs, updateDoc, onSnapshot } from 'firebase/firestore';
-import { db, sendMatchRequest, respondToMatchRequest } from '../services/firebase';
+import { db, sendMatchRequest, respondToMatchRequest, sendInspectionRequest } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 import { useAlert } from '../contexts/AlertContext';
 import type { MarketItem, NestListing } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft01Icon, FavouriteIcon, Location01Icon, Message01Icon, ShoppingBag01Icon, Alert01Icon, Cancel01Icon, Search01Icon, UserCheck01Icon, Tick02Icon, Cancel02Icon, WhatsappIcon } from 'hugeicons-react';
+import { ArrowLeft01Icon, FavouriteIcon, Location01Icon, Message01Icon, ShoppingBag01Icon, Alert01Icon, Cancel01Icon, Search01Icon, UserCheck01Icon, Tick02Icon, Cancel02Icon, Calendar03Icon } from 'hugeicons-react';
 import { VerificationModal } from '../components/modals/VerificationModal';
 
 interface Props {
@@ -36,22 +36,10 @@ export const ItemDetails: React.FC<Props> = ({ type }) => {
 
   // Match Request States
   const [matchRequest, setMatchRequest] = useState<any>(null);
+  const [inspectionRequest, setInspectionRequest] = useState<any>(null);
   const [incomingRequests, setIncomingRequests] = useState<any[]>([]);
-  const [listerData, setListerData] = useState<any>(null);
 
   const isLister = user?.uid === (type === 'market' ? (item as MarketItem)?.sellerId : (item as NestListing)?.listerId);
-
-  useEffect(() => {
-    if (!item) return;
-    const listerId = type === 'market' ? (item as MarketItem).sellerId : (item as NestListing).listerId;
-    const fetchLister = async () => {
-      const userDoc = await getDoc(doc(db, 'users', listerId));
-      if (userDoc.exists()) {
-        setListerData(userDoc.data());
-      }
-    };
-    fetchLister();
-  }, [item, type]);
 
   useEffect(() => {
     if (!id || !user) return;
@@ -105,6 +93,20 @@ export const ItemDetails: React.FC<Props> = ({ type }) => {
       }
     });
 
+    // Check for inspection request
+    const qInsp = query(
+      collection(db, 'inspection_requests'),
+      where('listingId', '==', id),
+      where('senderId', '==', user.uid)
+    );
+    const unsubInsp = onSnapshot(qInsp, (snap) => {
+      if (!snap.empty) {
+        setInspectionRequest({ id: snap.docs[0].id, ...snap.docs[0].data() });
+      } else {
+        setInspectionRequest(null);
+      }
+    });
+
     // If I am the lister, check for incoming requests
     let unsubIncoming: any;
     if (isLister) {
@@ -120,6 +122,7 @@ export const ItemDetails: React.FC<Props> = ({ type }) => {
 
     return () => {
       unsub();
+      unsubInsp();
       if (unsubIncoming) unsubIncoming();
     };
   }, [id, user, type, isLister]);
@@ -216,6 +219,46 @@ export const ItemDetails: React.FC<Props> = ({ type }) => {
     }
   };
 
+  const handleInspectionRequest = async () => {
+    if (!item || !user || !dbUser) return;
+
+    // Safety check
+    const isStaff = dbUser.role === 'admin' || dbUser.role === 'lead_admin';
+    if (dbUser.verificationStatus !== 'approved' && !isStaff) {
+      if (dbUser.verificationStatus === 'pending') {
+        setPendingAlert(true);
+        setTimeout(() => setPendingAlert(false), 4000);
+      } else {
+        setIsVerifyModalOpen(true);
+      }
+      return;
+    }
+
+    try {
+      await sendInspectionRequest(item, user);
+      showAlert({
+        title: 'Inspection Requested',
+        message: 'The lister has been notified of your interest. They will contact you to schedule a viewing.',
+        type: 'success'
+      });
+    } catch (err: any) {
+      if (err.message === 'DUPLICATE_INSPECTION') {
+        showAlert({
+          title: 'Already Requested',
+          message: 'You have already requested an inspection for this lodge.',
+          type: 'info'
+        });
+      } else {
+        console.error(err);
+        showAlert({
+          title: 'Request Failed',
+          message: 'Failed to transmit inspection request. Please try again.',
+          type: 'warning'
+        });
+      }
+    }
+  };
+
   const handleResponse = async (requestId: string, status: 'accepted' | 'rejected', senderId: string) => {
     if (!item || !user) return;
     try {
@@ -228,12 +271,6 @@ export const ItemDetails: React.FC<Props> = ({ type }) => {
     } catch (err) {
       console.error(err);
     }
-  };
-
-  const handleWhatsApp = () => {
-    if (!item || !listerData?.whatsapp) return;
-    const message = `Hello, I'm interested in your listing: ${item.title} on CamSphere.`;
-    window.open(`https://wa.me/${listerData.whatsapp}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
   const handleMessage = () => {
@@ -565,144 +602,143 @@ export const ItemDetails: React.FC<Props> = ({ type }) => {
               </div>
             </Link>
 
-                            {!isLister && (
-                              <div className="space-y-4 mt-8 relative z-20">
-                                {type === 'market' && (
-                                  <div className="space-y-4">
-                                    <button
-                                      onClick={() => {
-                                        if (item) {
-                                          addToCart({
-                                            itemId: item.id,
-                                            title: item.title,
-                                            price: (item as MarketItem).price,
-                                            image: item.images[0] || '',
-                                            sellerId: (item as MarketItem).sellerId
-                                          });
-                                        }
-                                      }}
-                                      className="w-full py-5 bg-[#B1A9FF] text-black border border-black font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 transition-all cursor-pointer"
-                                    >
-                                      <ShoppingBag01Icon size={20} />
-                                      Add to Bag
-                                    </button>
+            {!isLister && (
+              <div className="space-y-4 mt-8 relative z-20">
+                {type === 'market' && (
+                  <div className="space-y-4">
+                    <button
+                      onClick={() => {
+                        if (item) {
+                          addToCart({
+                            itemId: item.id,
+                            title: item.title,
+                            price: (item as MarketItem).price,
+                            image: item.images[0] || '',
+                            sellerId: (item as MarketItem).sellerId
+                          });
+                        }
+                      }}
+                      className="w-full py-5 bg-[#B1A9FF] text-black border border-black font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 transition-all cursor-pointer"
+                    >
+                      <ShoppingBag01Icon size={20} />
+                      Add to Bag
+                    </button>
 
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                      {listerData?.whatsapp && (
-                                        <button
-                                          onClick={handleWhatsApp}
-                                          className="py-5 bg-[#25D366] text-white border border-black/10 font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 transition-all cursor-pointer"
-                                        >
-                                          <WhatsappIcon size={20} />
-                                          WhatsApp
-                                        </button>
-                                      )}
-                                      <button
-                                        onClick={handleMessage}
-                                        className="py-5 bg-black dark:bg-white text-white dark:text-black border border-black dark:border-white font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] dark:shadow-[8px_8px_0px_0px_rgba(255,255,255,1)] hover:-translate-y-1 transition-all cursor-pointer"
-                                      >
-                                        <Message01Icon size={20} />
-                                        In-App Chat
-                                      </button>
-                                    </div>
+                    <button
+                      onClick={handleMessage}
+                      className="w-full py-5 bg-black dark:bg-white text-white dark:text-black border border-black dark:border-white font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] dark:shadow-[8px_8px_0px_0px_rgba(255,255,255,1)] hover:-translate-y-1 transition-all cursor-pointer"
+                    >
+                      <Message01Icon size={20} />
+                      In-App Chat
+                    </button>
             
-                                    {(item as MarketItem).allowOffers && (
-                                      <button
-                                        onClick={() => {
-                                          showAlert({
-                                            title: 'Formal Offer',
-                                            message: `Enter your proposed price for this item. This will initiate a negotiation with ${ (item as MarketItem).sellerName }.`,
-                                            type: 'prompt',
-                                            placeholder: 'ENTER AMOUNT (₦)...',
-                                            confirmText: 'Send Offer',
-                                            onConfirm: (amount) => {
-                                              if (amount && !isNaN(Number(amount))) {
-                                                navigate('/chat', {
-                                                  state: {
-                                                    receiverId: (item as MarketItem).sellerId,
-                                                    receiverName: (item as MarketItem).sellerName,
-                                                    taggedItem: {
-                                                      id: item.id,
-                                                      title: item.title,
-                                                      price: (item as MarketItem).price,
-                                                      image: item.images[0],
-                                                      source: 'market'
-                                                    },
-                                                    offerAmount: Number(amount)
-                                                  }
-                                                });
-                                              }
-                                            }
-                                          });
-                                        }}
-                                        className="w-full py-5 bg-white dark:bg-black text-black dark:text-white border-2 border-black dark:border-white font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] dark:shadow-[8px_8px_0px_0px_rgba(255,255,255,1)] hover:-translate-y-1 transition-all cursor-pointer"
-                                      >
-                                        <span className="text-[#FF5A5F]">⚡</span> Make Offer
-                                      </button>
-                                    )}
-                                  </div>
-                                )}
+                    {(item as MarketItem).allowOffers && (
+                      <button
+                        onClick={() => {
+                          showAlert({
+                            title: 'Formal Offer',
+                            message: `Enter your proposed price for this item. This will initiate a negotiation with ${ (item as MarketItem).sellerName }.`,
+                            type: 'prompt',
+                            placeholder: 'ENTER AMOUNT (₦)...',
+                            confirmText: 'Send Offer',
+                            onConfirm: (amount) => {
+                              if (amount && !isNaN(Number(amount))) {
+                                navigate('/chat', {
+                                  state: {
+                                    receiverId: (item as MarketItem).sellerId,
+                                    receiverName: (item as MarketItem).sellerName,
+                                    taggedItem: {
+                                      id: item.id,
+                                      title: item.title,
+                                      price: (item as MarketItem).price,
+                                      image: item.images[0],
+                                      source: 'market'
+                                    },
+                                    offerAmount: Number(amount)
+                                  }
+                                });
+                              }
+                            }
+                          });
+                        }}
+                        className="w-full py-5 bg-white dark:bg-black text-black dark:text-white border-2 border-black dark:border-white font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] dark:shadow-[8px_8px_0px_0px_rgba(255,255,255,1)] hover:-translate-y-1 transition-all cursor-pointer"
+                      >
+                        <span className="text-[#FF5A5F]">⚡</span> Make Offer
+                      </button>
+                    )}
+                  </div>
+                )}
 
-                                {type === 'nest' && (item as NestListing).type === 'roommate' ? (
-                                  <>
-                                    {!matchRequest ? (
-                                      <motion.button
-                                        whileTap={{ scale: 0.95 }}
-                                        onClick={handleMatchRequest}
-                                        className="w-full py-5 bg-black dark:bg-white text-white dark:text-black font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 transition-colors hover:bg-[#B1A9FF] hover:text-black border border-black dark:border-white cursor-pointer shadow-[8px_8px_0px_0px_rgba(177,169,255,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1"
-                                      >
-                                        <UserCheck01Icon size={20} />
-                                        Send Match Request
-                                      </motion.button>
-                                    ) : matchRequest.status === 'pending' ? (
-                                      <button
-                                        disabled
-                                        className="w-full py-5 bg-gray-100 dark:bg-gray-800 text-gray-400 font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 border border-black/10 cursor-not-allowed"
-                                      >
-                                        Request Pending
-                                      </button>
-                                    ) : matchRequest.status === 'accepted' ? (
-                                      <motion.button
-                                        whileTap={{ scale: 0.95 }}
-                                        onClick={handleMessage}
-                                        className="w-full py-5 bg-[#B1A9FF] text-black font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 transition-colors hover:opacity-80 border border-black cursor-pointer shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]"
-                                      >
-                                        <Message01Icon size={20} />
-                                        Start Chatting
-                                      </motion.button>
-                                    ) : (
-                                      <button
-                                        disabled
-                                        className="w-full py-5 bg-red-50 text-red-500 font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 border border-red-200 cursor-not-allowed"
-                                      >
-                                        Request Declined
-                                      </button>
-                                    )}
-                                  </>
-                                ) : (
-                                  <div className="grid grid-cols-1 gap-4">
-                                    {listerData?.whatsapp && (
-                                      <motion.button
-                                        whileTap={{ scale: 0.95 }}
-                                        onClick={handleWhatsApp}
-                                        className="w-full py-5 bg-[#25D366] text-white font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 transition-colors hover:opacity-90 border border-black/10 cursor-pointer shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]"
-                                      >
-                                        <WhatsappIcon size={20} />
-                                        WhatsApp Lister
-                                      </motion.button>
-                                    )}
-                                    <motion.button
-                                      whileTap={{ scale: 0.95 }}
-                                      onClick={handleMessage}
-                                      className="w-full py-5 bg-black dark:bg-white text-white dark:text-black font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 transition-colors hover:opacity-80 border border-black dark:border-white cursor-pointer"
-                                    >
-                                      <Message01Icon size={20} />
-                                      In-App Chat
-                                    </motion.button>
-                                  </div>
-                                )}
-                              </div>
-                            )}          </div>
+                {type === 'nest' && (item as NestListing).type === 'roommate' ? (
+                  <>
+                    {!matchRequest ? (
+                      <motion.button
+                        whileTap={{ scale: 0.95 }}
+                        onClick={handleMatchRequest}
+                        className="w-full py-5 bg-black dark:bg-white text-white dark:text-black font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 transition-colors hover:bg-[#B1A9FF] hover:text-black border border-black dark:border-white cursor-pointer shadow-[8px_8px_0px_0px_rgba(177,169,255,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1"
+                      >
+                        <UserCheck01Icon size={20} />
+                        Send Match Request
+                      </motion.button>
+                    ) : matchRequest.status === 'pending' ? (
+                      <button
+                        disabled
+                        className="w-full py-5 bg-gray-100 dark:bg-gray-800 text-gray-400 font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 border border-black/10 cursor-not-allowed"
+                      >
+                        Request Pending
+                      </button>
+                    ) : matchRequest.status === 'accepted' ? (
+                      <motion.button
+                        whileTap={{ scale: 0.95 }}
+                        onClick={handleMessage}
+                        className="w-full py-5 bg-[#B1A9FF] text-black font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 transition-colors hover:opacity-80 border border-black cursor-pointer shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]"
+                      >
+                        <Message01Icon size={20} />
+                        Start Chatting
+                      </motion.button>
+                    ) : (
+                      <button
+                        disabled
+                        className="w-full py-5 bg-red-50 text-red-500 font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 border border-red-200 cursor-not-allowed"
+                      >
+                        Request Declined
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  type === 'nest' && (
+                    <div className="space-y-4">
+                      {!inspectionRequest ? (
+                        <motion.button
+                          whileTap={{ scale: 0.95 }}
+                          onClick={handleInspectionRequest}
+                          className="w-full py-5 bg-[#FF5A5F] text-black font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 transition-colors hover:opacity-90 border border-black cursor-pointer shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]"
+                        >
+                          <Calendar03Icon size={20} />
+                          Request Inspection
+                        </motion.button>
+                      ) : (
+                        <button
+                          disabled
+                          className="w-full py-5 bg-gray-100 dark:bg-gray-800 text-gray-400 font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 border border-black/10 cursor-not-allowed"
+                        >
+                          Inspection Requested
+                        </button>
+                      )}
+                      <motion.button
+                        whileTap={{ scale: 0.95 }}
+                        onClick={handleMessage}
+                        className="w-full py-5 bg-black dark:bg-white text-white dark:text-black font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 transition-colors hover:opacity-80 border border-black dark:border-white cursor-pointer"
+                      >
+                        <Message01Icon size={20} />
+                        In-App Chat
+                      </motion.button>
+                    </div>
+                  )
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
