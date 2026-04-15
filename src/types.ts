@@ -61,6 +61,12 @@ export interface NestListing {
   rentPrice: number;
   amenities: string[];
   lifestylePrefs: string[];
+  lifestyleQuiz?: {
+    sleepSchedule: 'early' | 'night';
+    cleanliness: 1 | 2 | 3 | 4 | 5;
+    guests: 'never' | 'occasional' | 'frequent';
+    studyHabit: 'quiet' | 'background';
+  };
   distanceToCampus?: string;
   landmarks?: Landmark[];
   images: string[];
@@ -68,6 +74,9 @@ export interface NestListing {
   listerName: string;
   university: string;
   isAvailable: boolean;
+  isVerified?: boolean;
+  rating?: number;
+  reviewCount?: number;
   createdAt: number;
 }
 

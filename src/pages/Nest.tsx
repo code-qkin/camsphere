@@ -5,7 +5,7 @@ import { db } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import type { NestListing } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PlusSignIcon, Home03Icon, UserGroupIcon, Location01Icon, ArrowLeft01Icon, ZapIcon, DropletIcon, Shield01Icon } from 'hugeicons-react';
+import { PlusSignIcon, Home03Icon, UserGroupIcon, Location01Icon, ArrowLeft01Icon, ZapIcon, DropletIcon, Shield01Icon, StarIcon, CheckmarkBadge01Icon, AlertCircleIcon } from 'hugeicons-react';
 import { NestPostModal } from '../components/modals/NestPostModal';
 import { VerificationModal } from '../components/modals/VerificationModal';
 
@@ -16,6 +16,25 @@ const AmenityIcon = ({ name }: { name: string }) => {
   if (lower.includes('water')) return <DropletIcon size={iconSize} className="text-blue-400" />;
   if (lower.includes('security') || lower.includes('gate')) return <Shield01Icon size={iconSize} className="text-green-500" />;
   return null;
+};
+
+const RatingStars = ({ rating, count }: { rating?: number, count?: number }) => {
+  if (!rating) return null;
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex items-center gap-0.5">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <StarIcon 
+            key={star} 
+            size={10} 
+            variant={star <= rating ? "solid" : "stroke"}
+            className={star <= rating ? "text-[#FFD700]" : "text-gray-300"} 
+          />
+        ))}
+      </div>
+      <span className="text-[9px] font-black text-gray-400">({count})</span>
+    </div>
+  );
 };
 
 export const Nest = () => {
@@ -121,6 +140,17 @@ export const Nest = () => {
             </button>
           </div>
         </div>
+
+        {/* View Toggle Strategy */}
+        <div className="flex justify-end">
+          <div className="inline-flex items-center border border-black/10 dark:border-white/10 p-1 bg-gray-50 dark:bg-[#0a0a0a]">
+            <button className="px-4 py-2 bg-black text-white dark:bg-white dark:text-black text-[9px] font-black uppercase tracking-widest">List</button>
+            <button className="px-4 py-2 text-gray-400 hover:text-black dark:hover:text-white text-[9px] font-black uppercase tracking-widest flex items-center gap-2">
+              <Location01Icon size={12} />
+              Map (Soon)
+            </button>
+          </div>
+        </div>
       </div>
 
       {loading ? (
@@ -163,16 +193,38 @@ export const Nest = () => {
                           <div className="w-full h-full flex items-center justify-center font-bold uppercase tracking-widest text-[10px] text-gray-400 border border-dashed border-gray-300 dark:border-gray-700">No Image</div>
                         )}
                       </div>
-                      <div className="absolute top-8 left-8 bg-[#FF5A5F] text-black px-4 py-2 text-[10px] font-black uppercase tracking-[0.3em] border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                        ₦{item.rentPrice.toLocaleString()} / YR
+                      <div className="absolute top-8 left-8 flex flex-col gap-2">
+                        <div className="bg-[#FF5A5F] text-black px-4 py-2 text-[10px] font-black uppercase tracking-[0.3em] border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                          ₦{item.rentPrice.toLocaleString()} / YR
+                        </div>
+                        {item.isVerified && (
+                          <div className="bg-black text-white dark:bg-white dark:text-black px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.2em] border border-black dark:border-white flex items-center gap-2 w-fit">
+                            <CheckmarkBadge01Icon size={12} className="text-[#B1A9FF]" /> Verified Listing
+                          </div>
+                        )}
                       </div>
                     </div>
                     
                     <div className="p-8 flex-1 flex flex-col bg-white dark:bg-black">
-                      <div className="flex justify-between items-start mb-6">
+                      <div className="flex justify-between items-start mb-4">
                         <h3 className="font-black text-2xl uppercase tracking-tighter text-black dark:text-white line-clamp-1 leading-[0.9] group-hover:text-[#FF5A5F] transition-colors duration-300">
                           {item.title}
                         </h3>
+                      </div>
+
+                      <div className="flex items-center justify-between mb-6">
+                        <RatingStars rating={item.rating || 4.5} count={item.reviewCount || 12} />
+                        <button 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            // Implementation for reporting
+                          }}
+                          className="text-gray-400 hover:text-[#FF5A5F] transition-colors"
+                          title="Report Scam"
+                        >
+                          <AlertCircleIcon size={14} />
+                        </button>
                       </div>
 
                       <div className="flex flex-col gap-3 mb-8 border-b border-black/10 dark:border-white/10 pb-6">
