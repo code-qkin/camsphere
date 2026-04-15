@@ -22,9 +22,10 @@ export const sendMatchRequest = async (listing: any, sender: any) => {
     throw new Error('SELF_MATCH_ATTEMPT');
   }
 
-  // Check for existing request
+  // Check for existing request - MUST include university for rules
   const q = query(
     collection(db, 'match_requests'),
+    where('university', '==', listing.university),
     where('listingId', '==', listing.id),
     where('senderId', '==', sender.uid)
   );
@@ -67,8 +68,10 @@ export const sendMatchRequest = async (listing: any, sender: any) => {
 export const sendInspectionRequest = async (listing: any, sender: any) => {
   if (listing.listerId === sender.uid) throw new Error('SELF_INSPECTION_ATTEMPT');
 
+  // Check for existing request - MUST include university for rules
   const q = query(
     collection(db, 'inspection_requests'),
+    where('university', '==', listing.university),
     where('listingId', '==', listing.id),
     where('senderId', '==', sender.uid)
   );
