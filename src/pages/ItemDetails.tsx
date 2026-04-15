@@ -195,7 +195,7 @@ export const ItemDetails: React.FC<Props> = ({ type }) => {
     }
 
     try {
-      await sendMatchRequest(item, user);
+      await sendMatchRequest(item, dbUser);
       showAlert({
         title: 'Request Sent',
         message: 'Your match request has been transmitted. You will be notified if they accept.',
@@ -210,12 +210,9 @@ export const ItemDetails: React.FC<Props> = ({ type }) => {
         });
       } else {
         console.error(err);
-        const isPermissionError = err.message?.toLowerCase().includes('permission') || err.code?.includes('permission');
         showAlert({
           title: 'Transmission Error',
-          message: isPermissionError 
-            ? 'Security restriction: Your account permissions are insufficient for this request. Please contact support.' 
-            : 'Secure link failed. Please check your connection and retry.',
+          message: 'Secure link failed. Please check your connection and retry.',
           type: 'warning'
         });
       }
@@ -238,7 +235,7 @@ export const ItemDetails: React.FC<Props> = ({ type }) => {
     }
 
     try {
-      await sendInspectionRequest(item, user);
+      await sendInspectionRequest(item, dbUser);
       showAlert({
         title: 'Inspection Requested',
         message: 'The lister has been notified of your interest. They will contact you to schedule a viewing.',

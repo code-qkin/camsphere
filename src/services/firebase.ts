@@ -36,16 +36,19 @@ export const sendMatchRequest = async (listing: any, sender: any) => {
 
   // 1. Create the formal request record
   const requestRef = collection(db, 'match_requests');
-  const requestDoc = await addDoc(requestRef, {
+  await addDoc(requestRef, {
     listingId: listing.id,
+    listingTitle: listing.title,
     listerId: listing.listerId,
     senderId: sender.uid,
     senderName: sender.displayName,
     senderPhoto: sender.photoURL,
+    university: listing.university,
     status: 'pending',
     createdAt: Date.now()
   });
 
+  /*
   // 2. Notify the lister
   const notificationRef = collection(db, 'notifications');
   await addDoc(notificationRef, {
@@ -57,6 +60,7 @@ export const sendMatchRequest = async (listing: any, sender: any) => {
     link: `/nest/${listing.id}?requestId=${requestDoc.id}`,
     createdAt: Date.now()
   });
+  */
 };
 
 export const sendInspectionRequest = async (listing: any, sender: any) => {
@@ -74,10 +78,12 @@ export const sendInspectionRequest = async (listing: any, sender: any) => {
   const requestRef = collection(db, 'inspection_requests');
   await addDoc(requestRef, {
     listingId: listing.id,
+    listingTitle: listing.title,
     listerId: listing.listerId,
     senderId: sender.uid,
     senderName: sender.displayName,
     senderPhoto: sender.photoURL,
+    university: listing.university,
     status: 'pending',
     createdAt: Date.now()
   });
