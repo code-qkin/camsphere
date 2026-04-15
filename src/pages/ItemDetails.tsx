@@ -185,8 +185,21 @@ export const ItemDetails: React.FC<Props> = ({ type }) => {
         message: 'Your match request has been transmitted. You will be notified if they accept.',
         type: 'success'
       });
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      if (err.message === 'DUPLICATE_REQUEST') {
+        showAlert({
+          title: 'Already Sent',
+          message: 'You have already transmitted a request for this listing.',
+          type: 'info'
+        });
+      } else {
+        console.error(err);
+        showAlert({
+          title: 'Transmission Error',
+          message: 'Secure link failed. Please check your connection and retry.',
+          type: 'warning'
+        });
+      }
     }
   };
 

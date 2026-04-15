@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { getFirestore, collection, addDoc, doc, updateDoc } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, doc, updateDoc, query, where, getDocs } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -17,6 +17,18 @@ export const db = getFirestore(app);
 export const googleProvider = new GoogleAuthProvider();
 
 export const sendMatchRequest = async (listing: any, sender: any) => {
+  // Check for existing request
+  const q = query(
+    collection(db, 'match_requests'),
+    where('listingId', '==', listing.id),
+    where('senderId', '==', sender.uid)
+  );
+  
+  const existing = await getDocs(q);
+  if (!existing.empty) {
+    throw new Error('DUPLICATE_REQUEST');
+  }
+
   // 1. Create the formal request record
   const requestRef = collection(db, 'match_requests');
   const requestDoc = await addDoc(requestRef, {

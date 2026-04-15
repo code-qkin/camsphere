@@ -3,6 +3,7 @@ import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { collection, query, where, orderBy, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { db, sendMatchRequest, respondToMatchRequest } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
+import { useAlert } from '../contexts/AlertContext';
 import { NestPostModal } from '../components/modals/NestPostModal';
 import { VerificationModal } from '../components/modals/VerificationModal';
 import type { NestListing } from '../types';
@@ -68,6 +69,7 @@ export const Nest = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const currentTab = searchParams.get('tab') || 'lodge';
   const { dbUser } = useAuth();
+  const { showAlert } = useAlert();
   const [items, setItems] = useState<NestListing[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -135,8 +137,21 @@ export const Nest = () => {
       await sendMatchRequest(item, dbUser);
       setRequestSuccess(true);
       setTimeout(() => setRequestSuccess(false), 4000);
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      if (err.message === 'DUPLICATE_REQUEST') {
+        showAlert({
+          title: 'Already Sent',
+          message: 'You have already transmitted a request for this listing.',
+          type: 'info'
+        });
+      } else {
+        console.error(err);
+        showAlert({
+          title: 'Transmission Error',
+          message: 'Secure link failed. Please check your connection and retry.',
+          type: 'warning'
+        });
+      }
     }
   };
 
