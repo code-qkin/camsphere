@@ -76,11 +76,12 @@ export const ItemDetails: React.FC<Props> = ({ type }) => {
   }, [id, type, user]);
 
   useEffect(() => {
-    if (!id || !user || type !== 'nest') return;
+    if (!id || !user || !dbUser || type !== 'nest') return;
 
     // Check for my own request to this listing
     const q = query(
       collection(db, 'match_requests'),
+      where('university', '==', dbUser.university),
       where('listingId', '==', id),
       where('senderId', '==', user.uid)
     );
@@ -98,6 +99,7 @@ export const ItemDetails: React.FC<Props> = ({ type }) => {
     // Check for inspection request
     const qInsp = query(
       collection(db, 'inspection_requests'),
+      where('university', '==', dbUser.university),
       where('listingId', '==', id),
       where('senderId', '==', user.uid)
     );
@@ -116,6 +118,7 @@ export const ItemDetails: React.FC<Props> = ({ type }) => {
     if (isLister) {
       const qIncoming = query(
         collection(db, 'match_requests'),
+        where('university', '==', dbUser.university),
         where('listingId', '==', id),
         where('listerId', '==', user.uid),
         where('status', '==', 'pending')
@@ -132,7 +135,7 @@ export const ItemDetails: React.FC<Props> = ({ type }) => {
       unsubInsp();
       if (unsubIncoming) unsubIncoming();
     };
-  }, [id, user, type, isLister]);
+  }, [id, user, dbUser, type, isLister]);
 
   const toggleFavorite = async () => {
     if (!user || !item) return;
