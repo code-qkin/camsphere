@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import { db } from '../../services/firebase';
-import { collection, addDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, query, where, getDocs } from 'firebase/firestore';
 import { uploadToCloudinary } from '../../services/cloudinary';
 import { Cancel01Icon, Image01Icon, Camera01Icon } from 'hugeicons-react';
 
@@ -38,6 +38,20 @@ export const VerificationModal: React.FC<Props> = ({ isOpen, onClose }) => {
     setError('');
 
     try {
+      // Pre-check for existing pending verification in the collection (redundancy)
+      const q = query(
+        collection(db, 'verifications'),
+        where('userId', '==', user.uid),
+        where('status', '==', 'pending')
+      );
+      const existingSnap = await getDocs(q);
+      
+      if (!existingSnap.empty) {
+        setError('A verification request is already in the queue for this account.');
+        setLoading(false);
+        return;
+      }
+
       const [selfieUrl, idCardUrl] = await Promise.all([
         uploadToCloudinary(selfie),
         uploadToCloudinary(idCard)
