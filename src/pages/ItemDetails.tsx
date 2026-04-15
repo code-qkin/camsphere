@@ -113,6 +113,7 @@ export const ItemDetails: React.FC<Props> = ({ type }) => {
       const qIncoming = query(
         collection(db, 'match_requests'),
         where('listingId', '==', id),
+        where('listerId', '==', user.uid),
         where('status', '==', 'pending')
       );
       unsubIncoming = onSnapshot(qIncoming, (snap) => {
@@ -210,9 +211,12 @@ export const ItemDetails: React.FC<Props> = ({ type }) => {
         });
       } else {
         console.error(err);
+        const isPermissionError = err.message?.toLowerCase().includes('permission') || err.code?.includes('permission');
         showAlert({
           title: 'Transmission Error',
-          message: 'Secure link failed. Please check your connection and retry.',
+          message: isPermissionError 
+            ? 'Security restriction: Your account permissions are insufficient for this request. Please contact support if you are verified.'
+            : 'Secure link failed. Please check your connection and retry.',
           type: 'warning'
         });
       }

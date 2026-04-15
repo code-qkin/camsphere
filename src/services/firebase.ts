@@ -38,12 +38,13 @@ export const sendMatchRequest = async (listing: any, sender: any) => {
   const requestRef = collection(db, 'match_requests');
   await addDoc(requestRef, {
     listingId: listing.id,
-    listingTitle: listing.title,
+    listingTitle: listing.title || 'Untitled Listing',
     listerId: listing.listerId,
     senderId: sender.uid,
-    senderName: sender.displayName,
-    senderPhoto: sender.photoURL,
-    university: listing.university,
+    senderName: sender.displayName || 'Student',
+    senderPhoto: sender.photoURL || '',
+    senderEmail: sender.email || '',
+    university: listing.university || sender.university || '',
     status: 'pending',
     createdAt: Date.now()
   });
@@ -57,7 +58,7 @@ export const sendMatchRequest = async (listing: any, sender: any) => {
     message: `${sender.displayName} wants to match as a roommate for "${listing.title}".`,
     type: 'success',
     isRead: false,
-    link: `/nest/${listing.id}?requestId=${requestDoc.id}`,
+    link: `/nest/${listing.id}`,
     createdAt: Date.now()
   });
   */
@@ -78,12 +79,13 @@ export const sendInspectionRequest = async (listing: any, sender: any) => {
   const requestRef = collection(db, 'inspection_requests');
   await addDoc(requestRef, {
     listingId: listing.id,
-    listingTitle: listing.title,
+    listingTitle: listing.title || 'Untitled Listing',
     listerId: listing.listerId,
     senderId: sender.uid,
-    senderName: sender.displayName,
-    senderPhoto: sender.photoURL,
-    university: listing.university,
+    senderName: sender.displayName || 'Student',
+    senderPhoto: sender.photoURL || '',
+    senderEmail: sender.email || '',
+    university: listing.university || sender.university || '',
     status: 'pending',
     createdAt: Date.now()
   });
