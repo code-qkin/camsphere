@@ -27,7 +27,7 @@ const RatingStars = ({ rating, count }: { rating?: number, count?: number }) => 
           <StarIcon 
             key={star} 
             size={10} 
-            variant={star <= rating ? "solid" : "stroke"}
+            fill={star <= rating ? "#FFD700" : "transparent"}
             className={star <= rating ? "text-[#FFD700]" : "text-gray-300"} 
           />
         ))}

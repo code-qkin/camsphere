@@ -1,14 +1,7 @@
-import { useState, useEffect } from 'react';
-import { useSearchParams, Link, useNavigate } from 'react-router-dom';
-import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
-import { db } from '../services/firebase';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import type { MarketItem } from '../types';
-import { motion, AnimatePresence } from 'framer-motion';
-import { PlusSignIcon, ShoppingBag01Icon, CustomerService01Icon, ArrowLeft01Icon, Search01Icon } from 'hugeicons-react';
-import { MarketPostModal } from '../components/modals/MarketPostModal';
-import { VerificationModal } from '../components/modals/VerificationModal';
-import { useCart } from '../contexts/CartContext';
+import { motion } from 'framer-motion';
+import { ShoppingBag01Icon, ArrowLeft01Icon } from 'hugeicons-react';
 
 export const Market = () => {
   const navigate = useNavigate();
