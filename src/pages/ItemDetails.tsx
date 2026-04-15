@@ -38,6 +38,42 @@ export const ItemDetails: React.FC<Props> = ({ type }) => {
   const [matchRequest, setMatchRequest] = useState<any>(null);
   const [incomingRequests, setIncomingRequests] = useState<any[]>([]);
 
+  const isLister = user?.uid === (type === 'market' ? (item as MarketItem)?.sellerId : (item as NestListing)?.listerId);
+
+  useEffect(() => {
+    if (!id || !user) return;
+
+    const fetchItem = async () => {
+      try {
+        const collectionName = type === 'market' ? 'market_items' : 'nest_listings';
+        const docRef = doc(db, collectionName, id);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+          setItem({ id: docSnap.id, ...docSnap.data() } as any);
+        }
+
+        // Check favorite
+        const q = query(
+          collection(db, 'favorites'),
+          where('userId', '==', user.uid),
+          where('itemId', '==', id)
+        );
+        const favSnap = await getDocs(q);
+        if (!favSnap.empty) {
+          setIsFavorite(true);
+          setFavoriteId(favSnap.docs[0].id);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchItem();
+  }, [id, type, user]);
+
   useEffect(() => {
     if (!id || !user || type !== 'nest') return;
 
@@ -74,6 +110,58 @@ export const ItemDetails: React.FC<Props> = ({ type }) => {
       if (unsubIncoming) unsubIncoming();
     };
   }, [id, user, type, isLister]);
+
+  const toggleFavorite = async () => {
+    if (!user || !item) return;
+
+    try {
+      if (isFavorite && favoriteId) {
+        await deleteDoc(doc(db, 'favorites', favoriteId));
+        setIsFavorite(false);
+        setFavoriteId(null);
+      } else {
+        const docRef = await addDoc(collection(db, 'favorites'), {
+          userId: user.uid,
+          itemId: item.id,
+          itemType: type,
+          itemData: item,
+          createdAt: Date.now()
+        });
+        setIsFavorite(true);
+        setFavoriteId(docRef.id);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const submitReport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !item || !reportReason.trim()) return;
+    setIsReporting(true);
+    try {
+      await addDoc(collection(db, 'reports'), {
+        targetId: item.id,
+        type: 'item',
+        itemType: type,
+        reason: reportReason.trim(),
+        reporterId: user.uid,
+        status: 'open',
+        createdAt: Date.now()
+      });
+      setIsReportModalOpen(false);
+      setReportReason('');
+      showAlert({
+        title: 'Report Received',
+        message: 'Platform staff will audit this listing within 24 hours. Thank you for securing the network.',
+        type: 'success'
+      });
+    } catch (err) {
+      console.error("Report failed:", err);
+    } finally {
+      setIsReporting(false);
+    }
+  };
 
   const handleMatchRequest = async () => {
     if (!item || !user || !dbUser) return;
@@ -196,7 +284,6 @@ export const ItemDetails: React.FC<Props> = ({ type }) => {
     return <div className="min-h-[80vh] flex items-center justify-center text-black dark:text-white font-black uppercase tracking-widest text-xl">Item not found</div>;
   }
 
-  const isLister = user?.uid === (type === 'market' ? (item as MarketItem).sellerId : (item as NestListing).listerId);
   const accentColor = type === 'market' ? 'bg-[#B1A9FF]' : 'bg-[#FF5A5F]';
 
   return (

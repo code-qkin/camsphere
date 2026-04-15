@@ -86,10 +86,10 @@ export const Nest = () => {
       const qOutgoing = query(collection(db, 'match_requests'), where('senderId', '==', dbUser.uid));
 
       const unsubIncoming = onSnapshot(qIncoming, (snapI) => {
-        const incoming = snapI.docs.map(d => ({ id: d.id, ...d.data(), type: 'incoming' }));
+        const incoming = snapI.docs.map(d => ({ id: d.id, ...d.data(), type: 'incoming' } as any));
         const unsubOutgoing = onSnapshot(qOutgoing, (snapO) => {
-          const outgoing = snapO.docs.map(d => ({ id: d.id, ...d.data(), type: 'outgoing' }));
-          setRequests([...incoming, ...outgoing].sort((a, b) => b.createdAt - a.createdAt));
+          const outgoing = snapO.docs.map(d => ({ id: d.id, ...d.data(), type: 'outgoing' } as any));
+          setRequests([...incoming, ...outgoing].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)));
           setLoading(false);
         });
         return () => unsubOutgoing();
@@ -270,7 +270,7 @@ export const Nest = () => {
               </p>
             </div>
             <button 
-              onClick={() => navigate('/onboarding')}
+              onClick={() => navigate('/nest/quiz')}
               className="bg-white text-black px-10 py-4 font-black uppercase tracking-[0.3em] text-[10px] hover:bg-[#B1A9FF] transition-all whitespace-nowrap shadow-[6px_6px_0px_0px_rgba(177,169,255,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1"
             >
               Finish Quiz

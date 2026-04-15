@@ -72,7 +72,7 @@ export const Home = () => {
     { title: "Find an Item", subtitle: "Shop the Market", icon: ShoppingBag01Icon, link: "/market", image: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&q=80&w=400" },
     { title: "Offer a Service", subtitle: "Freelance", icon: CustomerService01Icon, link: "/market?tab=services", image: "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&q=80&w=400" },
     { title: "Find a Lodge", subtitle: "Housing Nest", icon: Home03Icon, link: "/nest", image: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=400" },
-    { title: "Need Roommate", subtitle: "Connect", icon: UserGroupIcon, link: "/nest?tab=roommates", image: "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&q=80&w=400" }
+    { title: "Need Roommate", subtitle: "Connect", icon: UserGroupIcon, link: "/nest?tab=roommate", image: "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&q=80&w=400" }
   ];
 
   return (

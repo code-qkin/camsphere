@@ -23,6 +23,17 @@ export const VerificationModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !dbUser || !selfie || !idCard) return;
+
+    if (dbUser.verificationStatus === 'pending') {
+      setError('You already have a verification request pending review.');
+      return;
+    }
+
+    if (dbUser.verificationStatus === 'approved') {
+      setError('Your account is already verified.');
+      return;
+    }
+
     setLoading(true);
     setError('');
 

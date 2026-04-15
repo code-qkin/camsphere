@@ -13,6 +13,7 @@ import { Nest } from './pages/Nest';
 import { Chat } from './pages/Chat';
 import { Profile } from './pages/Profile';
 import { ItemDetails } from './pages/ItemDetails';
+import { LifestyleQuiz } from './pages/LifestyleQuiz';
 import { AdminSignup } from './pages/AdminSignup';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { AdminRoute } from './components/auth/AdminRoute';
@@ -83,6 +84,7 @@ const AppRoutes = () => {
           <Route path="/market" element={<ProtectedRoute><div className="max-w-[1400px] mx-auto px-6 lg:px-12 pb-24 pt-24"><Market /></div></ProtectedRoute>} />
           <Route path="/market/:id" element={<ProtectedRoute><div className="max-w-[1400px] mx-auto px-6 lg:px-12 pb-24 pt-24"><ItemDetails type="market" /></div></ProtectedRoute>} />
           <Route path="/nest" element={<ProtectedRoute><div className="max-w-[1400px] mx-auto px-6 lg:px-12 pb-24 pt-24"><Nest /></div></ProtectedRoute>} />
+          <Route path="/nest/quiz" element={<ProtectedRoute><LifestyleQuiz /></ProtectedRoute>} />
           <Route path="/nest/:id" element={<ProtectedRoute><div className="max-w-[1400px] mx-auto px-6 lg:px-12 pb-24 pt-24"><ItemDetails type="nest" /></div></ProtectedRoute>} />
           <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
           <Route path="/chat/:id" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
